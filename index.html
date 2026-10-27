@@ -157,7 +157,7 @@
       color: #333;
     }
 
-    /* Home View - Stamp Grid */
+    /* Stamp Grid */
     .stamp-grid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -299,7 +299,7 @@
       margin: 4px 0;
     }
 
-    /* Food & Reward Cards */
+    /* Rewards Grid */
     .reward-grid {
       display: grid;
       grid-template-columns: 1fr;
@@ -434,10 +434,7 @@
     /* Modal Inputs */
     .modal-overlay {
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0,0,0,0.4);
       display: none;
       align-items: center;
@@ -445,9 +442,7 @@
       z-index: 2000;
     }
 
-    .modal-overlay.active {
-      display: flex;
-    }
+    .modal-overlay.active { display: flex; }
 
     .modal {
       background: white;
@@ -465,56 +460,18 @@
       text-align: center;
     }
 
-    .input-group {
-      margin-bottom: 12px;
-    }
-
-    .input-group label {
-      display: block;
-      font-size: 12px;
-      color: var(--text-light);
-      margin-bottom: 4px;
-    }
-
-    .input-group input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #DDD;
-      border-radius: 10px;
-      font-size: 14px;
-    }
-
-    .modal-btns {
-      display: flex;
-      gap: 10px;
-      margin-top: 20px;
-    }
-
-    .btn-cancel {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #DDD;
-      background: white;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    .btn-save {
-      flex: 1;
-      padding: 10px;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-weight: bold;
-      cursor: pointer;
-    }
+    .input-group { margin-bottom: 12px; }
+    .input-group label { display: block; font-size: 12px; color: var(--text-light); margin-bottom: 4px; }
+    .input-group input { width: 100%; padding: 10px; border: 1px solid #DDD; border-radius: 10px; font-size: 14px; }
+    .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-cancel { flex: 1; padding: 10px; border: 1px solid #DDD; background: white; border-radius: 10px; cursor: pointer; }
+    .btn-save { flex: 1; padding: 10px; background: var(--primary); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
   </style>
 </head>
 <body>
 
 <div class="app-container">
-  <!-- Top Sync Banner -->
+  <!-- Sync Banner -->
   <div class="sync-bar">
     <span>☁️ 雲端狀態：<strong id="sync-status">連線中...</strong></span>
     <button class="btn-share" onclick="copyShareLink()">📋 複製共享連結</button>
@@ -567,12 +524,12 @@
     </div>
   </div>
 
-  <!-- TAB 3: 個人主頁 (Profile - Center) -->
+  <!-- TAB 3: 個人主頁 (Profile) -->
   <div class="tab-content" id="tab-profile">
     <div class="card profile-header">
       <div class="avatar-wrapper" onclick="document.getElementById('avatar-input').click()">
         <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200" class="avatar-img" id="profile-avatar">
-        <div class="avatar-sticker" id="profile-sticker">✨</div>
+        <div class="avatar-sticker">✨</div>
         <input type="file" id="avatar-input" accept="image/*" style="display: none;" onchange="handleAvatarUpload(event)">
       </div>
       <div class="profile-name" id="profile-display-name">女友</div>
@@ -672,7 +629,7 @@
     </div>
   </div>
 
-  <!-- Bottom Navigation -->
+  <!-- Bottom Nav -->
   <div class="bottom-nav">
     <div class="nav-item active" onclick="switchTab('home', this)">
       <i class="fa-solid fa-house"></i>
@@ -759,64 +716,53 @@
   };
 
   const urlParams = new URLSearchParams(window.location.search);
-  let binId = urlParams.get('bin');
-  let store = defaultData;
+  let roomKey = urlParams.get('room');
+  let store = JSON.parse(JSON.stringify(defaultData));
   let currentRole = 'her';
 
-  const JSONBIN_MASTER_KEY = '$2a$10$wT/Q8p3C3R5jK.q3eG.4.uK6T6kXyW7k2L9m4N0P1Q2R3S4T5U6V7'; // Public endpoint handler
+  // 使用開源免金鑰 KV API (kvdb.io)
+  const KVDB_BUCKET = 'C8yU8S3G2K9M6L5P'; // 公用儲存桶
 
-  // Initialize or Load Bin
   async function initCloudSync() {
     const statusEl = document.getElementById('sync-status');
-    if (!binId) {
-      statusEl.innerText = '建立專屬小窩中...';
-      try {
-        const res = await fetch('https://api.jsonbin.io/v3/b', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Bin-Private': 'false'
-          },
-          body: JSON.stringify(defaultData)
-        });
-        const data = await res.json();
-        binId = data.metadata.id;
-        window.history.replaceState(null, '', `?bin=${binId}`);
-        statusEl.innerText = '✅ 已連線雲端';
-      } catch (e) {
-        statusEl.innerText = '⚠️ 本地模式 (未連線)';
-      }
-    } else {
-      statusEl.innerText = '🔄 同步中...';
-      await loadFromCloud();
+    if (!roomKey) {
+      roomKey = 'room_' + Math.random().toString(36).substring(2, 10);
+      window.history.replaceState(null, '', `?room=${roomKey}`);
     }
 
-    // Auto poll cloud every 3 seconds for real-time updates
-    setInterval(loadFromCloud, 3000);
+    renderApp();
+    await loadFromCloud();
+    setInterval(loadFromCloud, 3000); // 每 3 秒背景同步
   }
 
   async function loadFromCloud() {
-    if (!binId) return;
+    if (!roomKey) return;
     try {
-      const res = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`);
+      const res = await fetch(`https://kvdb.io/${KVDB_BUCKET}/${roomKey}`);
       if (res.ok) {
-        const data = await res.json();
-        store = data.record;
-        document.getElementById('sync-status').innerText = '✅ 已即時同步';
-        renderApp();
+        const cloudData = await res.json();
+        if (cloudData && cloudData.her) {
+          store = cloudData;
+          if (!store.tasks) store.tasks = defaultData.tasks;
+          document.getElementById('sync-status').innerText = '✅ 已即時同步';
+          renderApp();
+        }
+      } else if (res.status === 404) {
+        // 雲端尚未建立該房間，自動寫入預設資料
+        await saveData();
       }
     } catch (e) {
-      document.getElementById('sync-status').innerText = '⚠️ 連線失聯';
+      document.getElementById('sync-status').innerText = '⚠️ 本地離線中';
     }
   }
 
   async function saveData() {
     renderApp();
-    if (!binId) return;
-    document.getElementById('sync-status').innerText = '⏳ 上傳中...';
+    if (!roomKey) return;
+    document.getElementById('sync-status').innerText = '⏳ 上傳同步中...';
     try {
-      await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
-        method: 'PUT',
+      await fetch(`https://kvdb.io/${KVDB_BUCKET}/${roomKey}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(store)
       });
@@ -828,7 +774,7 @@
 
   function copyShareLink() {
     navigator.clipboard.writeText(window.location.href);
-    alert('已複製雲端共享網址！請將這個網址傳給女友，開啟後兩台手機就會自動即時同步囉 💕');
+    alert('已複製雲端共享網址！請將這個網址傳給女友，兩人點開就會秒同步囉 💕');
   }
 
   function switchRole(role) {
@@ -852,7 +798,7 @@
   }
 
   function renderApp() {
-    const data = store[currentRole];
+    const data = store[currentRole] || defaultData[currentRole];
     if (!data.lastChecked) data.lastChecked = {};
     
     document.getElementById('current-points').innerText = data.points;
@@ -869,15 +815,17 @@
 
     const today = getTodayStr();
 
+    // 渲染快捷打卡
     const quickContainer = document.getElementById('quick-tasks-container');
     quickContainer.innerHTML = '';
-    store.tasks.slice(0, 2).forEach(task => {
+    (store.tasks || defaultData.tasks).slice(0, 2).forEach(task => {
       quickContainer.appendChild(createTaskElement(task, today, data.lastChecked[task.id] === today));
     });
 
+    // 渲染完整任務頁面
     const fullContainer = document.getElementById('full-tasks-container');
     fullContainer.innerHTML = '';
-    store.tasks.forEach(task => {
+    (store.tasks || defaultData.tasks).forEach(task => {
       fullContainer.appendChild(createTaskElement(task, today, data.lastChecked[task.id] === today));
     });
 
